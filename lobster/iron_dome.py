@@ -89,16 +89,57 @@ class IronDome:
         """
         Green Dome (Tier 0.5):
         Checks for known safe patterns to bypass expensive API calls.
+        Strictly requires the entire payload (or all encapsulated tool arguments)
+        to match benign heuristic patterns, preventing substring bypass exploits.
         """
-        if not code_snippet: 
+        if not code_snippet:
             return None
 
-        # Quick check for obviously safe patterns
+        clean_code = code_snippet.strip()
+
+        # Quick check for obviously safe plain code patterns
         for safety_type, patterns in IronDome.COMPILED_GREEN_PATTERNS.items():
             for pattern in patterns:
-                if pattern.fullmatch(code_snippet.strip()) or pattern.search(code_snippet):
-                     return {
+                if pattern.fullmatch(clean_code):
+                    return {
                         "status": "ALLOW",
                         "analysis": f"GREEN DOME (Tier 0.5): Approved by heuristic allowlist for {safety_type}."
                     }
+
+        # Check for JSON-encapsulated tool arguments (e.g. MCP tools/call requests)
+        if clean_code.startswith("{") and clean_code.endswith("}"):
+            try:
+                import json
+                data = json.loads(clean_code)
+                if isinstance(data, dict):
+                    args = data.get("arguments") if "arguments" in data else data
+                    if isinstance(args, dict) and args:
+                        matched_all = True
+                        last_safety = None
+                        for val in args.values():
+                            if isinstance(val, str):
+                                val_clean = val.strip()
+                                val_matched = False
+                                for safety_type, patterns in IronDome.COMPILED_GREEN_PATTERNS.items():
+                                    for pattern in patterns:
+                                        if pattern.fullmatch(val_clean):
+                                            val_matched = True
+                                            last_safety = safety_type
+                                            break
+                                    if val_matched:
+                                        break
+                                if not val_matched:
+                                    matched_all = False
+                                    break
+                            else:
+                                matched_all = False
+                                break
+                        if matched_all and last_safety:
+                            return {
+                                "status": "ALLOW",
+                                "analysis": f"GREEN DOME (Tier 0.5): Approved by heuristic allowlist for {last_safety}."
+                            }
+            except Exception:
+                pass
+
         return None

