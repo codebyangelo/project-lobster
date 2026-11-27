@@ -102,7 +102,8 @@ class TestDashboardReporting(unittest.TestCase):
 
     def test_input_listener_arrow_keys(self):
         # Verify escape sequence parsing for UP and DOWN arrows
-        with patch('termios.tcgetattr'), patch('tty.setcbreak'), patch('termios.tcsetattr'):
+        with patch('sys.stdin.fileno', return_value=0), \
+             patch('termios.tcgetattr'), patch('tty.setcbreak'), patch('termios.tcsetattr'):
             with dashboard.InputListener() as listener:
                 
                 # Mock select to pretend there is input ready to read

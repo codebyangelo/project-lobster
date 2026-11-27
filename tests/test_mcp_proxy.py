@@ -31,6 +31,9 @@ class TestMCPProxy(unittest.TestCase):
     def tearDown(self):
         self.proc.terminate()
         self.proc.wait()
+        for stream in (self.proc.stdin, self.proc.stdout, self.proc.stderr):
+            if stream:
+                stream.close()
 
     def send_req(self, req_dict):
         self.proc.stdin.write(json.dumps(req_dict) + "\n")
